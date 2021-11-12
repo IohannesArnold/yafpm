@@ -1,0 +1,20 @@
+package_name = "unhex"
+package_version = "0.0.1"
+hash = "26f175461396f1cb925805416d6eb75dc867357764457ccb9a8488b0a6e86bc6"
+build_command = "/unhex"
+build_command_args = [
+"/unhex.x",
+"/tmp/unhex-0.0.1-E3YXKRQTS3Y4XESYAVAW23VXLXEGONLXMRCXZS42QSELBJXINPDA/unhex"
+]
+
+[[resources]]
+name = "unhex.x"
+hash = "608b2cbd0dff1ec5199163f45e0587e359d4a6e4b5df62ea71a539cd924093e1"
+# At the moment, relative pathnames don't work; replace .. with the repo dir
+url = "file://../tests/pkgs/unhex.x"
+
+[[resources]]
+name = "unhex"
+hash = "0c3fed118c7fdb48214d71457dd97172edf6a35ba4a4ff3b9885c020ead0c992"
+# At the moment, relative pathnames don't work; replace .. with the repo dir
+url = "file://../tests/pkgs/unhex"
