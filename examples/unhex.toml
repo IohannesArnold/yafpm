@@ -10,8 +10,7 @@ build_command_args = [
 [[resources]]
 name = "unhex.x"
 hash = "608b2cbd0dff1ec5199163f45e0587e359d4a6e4b5df62ea71a539cd924093e1"
-# At the moment, relative pathnames don't work; replace .. with the repo dir
-url = "file://../tests/pkgs/unhex.x"
+url = "https://raw.githubusercontent.com/IohannesArnold/hex2asm/master/0-unhex/unhex.x"
 
 [[resources]]
 name = "unhex"
