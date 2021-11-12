@@ -123,6 +123,8 @@ impl<'a> Resource<'a> {
             "file" =>  self.fetch_file(&build_dir),
             #[cfg(feature = "minreq")]
             "http" => self.fetch_http(&build_dir),
+            #[cfg(feature = "minreq-https")]
+            "https" => self.fetch_http(&build_dir),
             scheme =>  Err(ResourceError::Unrecognized{
                 scheme: scheme.to_string(),
                 name: self.name.to_string()
