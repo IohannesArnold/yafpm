@@ -25,6 +25,8 @@ use crate::hashes;
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
+#[cfg(feature = "minreq")]
+use minreq;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResourceError {
@@ -39,6 +41,19 @@ pub enum ResourceError {
         #[source]
         err: io::Error,
         file: PathBuf
+    },
+    #[cfg(feature = "minreq")]
+    #[error("HTTP error while accessing {url}")]
+    HTTPError {
+        #[source]
+        err: minreq::Error,
+        url: Url
+    },
+    #[cfg(feature = "minreq")]
+    #[error("Received HTTP response {} from {url}", response.status_code)]
+    HTTPStatus {
+        url: Url,
+        response: minreq::Response
     },
     #[error("Resource {name} has unrecognized URL scheme: {scheme}")]
     Unrecognized{
@@ -80,12 +95,34 @@ impl<'a> Resource<'a> {
         Ok(())
     }
 
+    #[cfg(feature = "minreq")]
+    fn fetch_http<P: AsRef<Path>>(
+        &self,
+        build_dir: P,
+    ) -> Result <(), ResourceError> {
+        let response = minreq::get(self.url.as_str()).send().map_err(
+            |e| ResourceError::HTTPError{err: e, url: self.url.clone()})?;
+        if response.status_code != 200 {
+            return Err(ResourceError::HTTPStatus{
+                url: self.url.clone(),
+                response: response });
+        }
+        self.hash.verify_hash_from_fn(io::copy, &mut response.as_bytes()).map_err(
+            |e| ResourceError::HashError{err: e, name: self.name.to_string()})?;
+        let target = build_dir.as_ref().join(self.name);
+        fs::write(&target, response.into_bytes()).map_err(
+            |e| ResourceError::IOError{err: e, file: target})?;
+        Ok(())
+    }
+
     pub(crate) fn fetch_resource<P: AsRef<Path>>(
         &self,
         build_dir: P
     ) -> Result <(), ResourceError> {
         match self.url.scheme() {
             "file" =>  self.fetch_file(&build_dir),
+            #[cfg(feature = "minreq")]
+            "http" => self.fetch_http(&build_dir),
             scheme =>  Err(ResourceError::Unrecognized{
                 scheme: scheme.to_string(),
                 name: self.name.to_string()
