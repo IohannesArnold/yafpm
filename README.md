@@ -13,10 +13,10 @@ design space around Nix. An overview of some of these decisions is found in
 ## Usage
 Since this project is still in its early days, there is only one command:
 `yafpm-build`. This command will build and install a package that is
-described by a TOML or JSON file. An example of this file is given in the
-`examples` directory. Currently there is no way to run a repository, or
-install a package from a repository, or uninstall anything (aside from
-using `rm`).
+described by a TOML or JSON file. Examples of these build files are found in the
+[Yafpm Packages Repository](https://github.com/IohannesArnold/yafpm-packages).
+Currently there is no way to run a repository, or install a package from a
+repository, or uninstall anything (aside from using `rm`).
 
 ## License
 Yafpm is offered under the terms of the GNU General Public License
