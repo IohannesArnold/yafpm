@@ -29,11 +29,9 @@ use serde::{Serialize, Deserialize};
 pub struct Package<'a> {
     #[cfg_attr(feature = "serde", serde(rename = "package_name"))]
     #[cfg_attr(feature = "serde", serde(alias = "name"))]
-    #[cfg_attr(feature = "serde", serde(borrow))]
     pub pkg_name: &'a str,
     #[cfg_attr(feature = "serde", serde(rename = "package_version"))]
     #[cfg_attr(feature = "serde", serde(alias = "version"))]
-    #[cfg_attr(feature = "serde", serde(borrow))]
     pkg_version: &'a str,
     #[cfg_attr(feature = "serde", serde(rename = "dependencies"))]
     #[cfg_attr(feature = "serde", serde(default))]

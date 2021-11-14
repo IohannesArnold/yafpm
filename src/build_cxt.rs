@@ -77,7 +77,6 @@ pub struct BuildCxt<'a> {
     #[cfg_attr(feature = "serde", serde(borrow))]
     build_deps: Vec<PKG<'a>>,
     #[cfg_attr(feature = "serde", serde(rename = "build_command"))]
-    #[cfg_attr(feature = "serde", serde(borrow))]
     build_cmd: &'a str,
     #[cfg_attr(feature = "serde", serde(rename = "build_command_args"))]
     #[cfg_attr(feature = "serde", serde(default))]
