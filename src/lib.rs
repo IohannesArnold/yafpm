@@ -31,4 +31,6 @@ mod package;
 pub use build_cxt::BuildCxt;
 pub use build_cxt::BuildError;
 pub use resource::Resource;
+#[cfg(feature = "serde")]
+pub use resource::url_serde::SERDE_BASE_URL;
 pub use package::Package;

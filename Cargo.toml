@@ -10,11 +10,10 @@ path = "src/lib.rs"
 [[bin]]
 name = "yafpm-build"
 path = "src/bin/yafpm-build.rs"
-required-features = ["serde-enable", "lexopt"]
+required-features = ["serde", "lexopt"]
 
 [features]
 default = []
-serde-enable = ["serde", "url/serde"]
 minreq-https = ["minreq", "minreq/https-rustls"]
 
 [dependencies]

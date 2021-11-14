@@ -95,6 +95,31 @@ fn get_config_format(ft: FileType, file_path: &Path) -> FileType {
     }
 }
 
+// So our config file can have things like "url = './build.sh'"
+fn set_serde_base_url(file_path: &Path) -> Result<(), io::Error> {
+    use url::Url;
+    use yafpm::SERDE_BASE_URL;
+
+    let absolute_path = match file_path.is_absolute() {
+        true => file_path.canonicalize()?,
+        false => {
+            let mut pwd = std::env::current_dir()?;
+            pwd.push(file_path);
+            pwd.canonicalize()?
+        }
+    };
+
+    // Unwraping this should be fine because we already
+    // canonicalize absolute_path
+    let url = Url::from_file_path(absolute_path).unwrap();
+
+    unsafe {
+        SERDE_BASE_URL = Some(url);
+    }
+
+    Ok(())
+
+}
 
 fn main() {
     let (ft, file_str, pkg_dir, _verbosity) = match parse_args() {
@@ -112,6 +137,11 @@ fn main() {
         }
     };
     let file_path = Path::new(&file_str);
+    if let Err(e) = set_serde_base_url(&file_path) {
+        eprintln!("Unable to determine canonical directory of {}", file_path.display());
+        eprintln!("Encountered error: {}", e);
+        std::process::exit(1);
+    }
     let contents = match read_path_to_string(&file_path) {
         Ok(c) => c,
         Err(e) => {
