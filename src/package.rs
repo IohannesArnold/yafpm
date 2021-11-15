@@ -16,6 +16,7 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::PathBuf;
+use std::collections::HashMap;
 use blake2::Blake2s;
 use data_encoding::BASE32_NOPAD;
 
@@ -33,11 +34,14 @@ pub struct Package<'a> {
     #[cfg_attr(feature = "serde", serde(rename = "package_version"))]
     #[cfg_attr(feature = "serde", serde(alias = "version"))]
     pkg_version: &'a str,
+    pub(crate) hash: hashes::ItemHash<Blake2s>,
     #[cfg_attr(feature = "serde", serde(rename = "dependencies"))]
     #[cfg_attr(feature = "serde", serde(default))]
     #[cfg_attr(feature = "serde", serde(borrow))]
     pub(crate) deps: Vec<Package<'a>>,
-    pub(crate) hash: hashes::ItemHash<Blake2s>
+    #[cfg_attr(feature = "serde", serde(default))]
+    #[cfg_attr(feature = "serde", serde(borrow))]
+    pub(crate) build_settings: HashMap<&'a str, &'a str>,
 }
 
 impl<'a> Package<'a> {
@@ -49,8 +53,9 @@ impl<'a> Package<'a> {
         Package {
             pkg_name,
             pkg_version,
+            hash,
             deps: Vec::new(),
-            hash
+            build_settings: HashMap::new(),
         }
     }
 
@@ -58,6 +63,13 @@ impl<'a> Package<'a> {
         where I: IntoIterator<Item = Self>
     {
         self.deps.extend(iter);
+        self
+    }
+
+    pub fn add_build_settings<I>(&mut self, iter: I) -> &mut Self
+        where I: IntoIterator<Item = (&'a str, &'a str)>
+    {
+        self.build_settings.extend(iter);
         self
     }
 

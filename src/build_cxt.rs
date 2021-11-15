@@ -19,7 +19,6 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command,ExitStatus};
-use std::collections::HashMap;
 use std::os::unix::process::CommandExt;
 use blake2::Blake2s;
 use nix::unistd::chroot;
@@ -82,10 +81,6 @@ pub struct BuildCxt<'a> {
     #[cfg_attr(feature = "serde", serde(default))]
     #[cfg_attr(feature = "serde", serde(borrow))]
     build_cmd_args: Vec<&'a str>,
-    #[cfg_attr(feature = "serde", serde(rename = "build_env_vars"))]
-    #[cfg_attr(feature = "serde", serde(default))]
-    #[cfg_attr(feature = "serde", serde(borrow))]
-    build_envs: HashMap<&'a str, &'a str>,
 }
 
 impl<'a> BuildCxt<'a> {
@@ -94,7 +89,6 @@ impl<'a> BuildCxt<'a> {
         pkg_version: &'a str,
         hash: hashes::ItemHash<Blake2s>,
         build_cmd: &'a str,
-        build_envs: HashMap<&'a str, &'a str>,
     ) -> Self {
         let pgk_info = PKG::new(
             pkg_name,
@@ -107,7 +101,6 @@ impl<'a> BuildCxt<'a> {
             build_deps: Vec::new(),
             build_cmd,
             build_cmd_args: Vec::new(),
-            build_envs,
         }
     }
 
@@ -166,11 +159,16 @@ impl<'a> BuildCxt<'a> {
         build_dir: &PathBuf,
         out_dir: &PathBuf
     ) -> Result<(), BuildError> {
+        let dep_env_clos = |d: &PKG<'a>|
+            // This unwrap should be fine due to canonicalization in exec_build
+            (d.pkg_name, out_dir.parent().unwrap().join(d.pkg_ident()));
         let mut child = Command::new(self.build_cmd);
         child.env_clear()
              .args(&self.build_cmd_args)
-             .env("OUT", out_dir.as_os_str())
-             .envs(&self.build_envs)
+             .env("out", out_dir.as_os_str())
+             .envs(self.build_deps.iter().map(dep_env_clos))
+             .envs(self.pkg_info.deps.iter().map(dep_env_clos))
+             .envs(&self.pkg_info.build_settings)
              .current_dir(&build_dir);
         // TODO there has to be an more elegant way of doing this
         let build_dir_clone = build_dir.clone();
@@ -230,8 +228,8 @@ impl<'a> BuildCxt<'a> {
         pkg_store_dir: P
     ) -> Result<PKG<'a>, BuildError> {
         let abs_dir: PathBuf;
-        // Be careful editing this. There are unwraps in mod namespace that
-        // rely on pkg_store_dir and its derivatives being absolute.
+        // Be careful editing this. There are unwraps that rely on
+        // pkg_store_dir and its derivatives being absolute.
         let pkg_store_dir = if pkg_store_dir.as_ref().is_absolute() {
             pkg_store_dir.as_ref()
         } else {
