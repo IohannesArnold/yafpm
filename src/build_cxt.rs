@@ -17,6 +17,7 @@
 
 use std::fs;
 use std::io;
+use std::ffi::{OsString, OsStr};
 use std::path::{Path, PathBuf};
 use std::process::{Command,ExitStatus};
 use std::os::unix::process::CommandExt;
@@ -132,6 +133,22 @@ impl<'a> BuildCxt<'a> {
         self
     }
 
+    fn make_path_string<P: AsRef<OsStr>> (
+        &self,
+        pkg_store_dir: P
+    ) -> OsString {
+        let l1 = self.build_deps.len() * 80; // 80 is about the average len
+        let l2 = self.pkg_info.deps.len() * 80; // of a pkg install path
+        let mut s = OsString::with_capacity(l1 + l2);
+        for dep in self.pkg_info.deps.iter().chain(self.build_deps.iter()) {
+            s.push(pkg_store_dir.as_ref());
+            s.push("/");
+            s.push(dep.pkg_ident());
+            s.push("/bin/:");
+        }
+        s
+    }
+
     fn setup_build_env<P: AsRef<Path>> (
         &self,
         pkg_store_dir: P
@@ -154,21 +171,22 @@ impl<'a> BuildCxt<'a> {
         Ok((build_dir, out_dir))
     }
 
-    fn exec_build_cmd(
+    fn exec_build_cmd<P: AsRef<Path>> (
         &self,
+        pkg_store_dir: P,
         build_dir: &PathBuf,
         out_dir: &PathBuf
     ) -> Result<(), BuildError> {
         let dep_env_clos = |d: &PKG<'a>|
-            // This unwrap should be fine due to canonicalization in exec_build
-            (d.pkg_name, out_dir.parent().unwrap().join(d.pkg_ident()));
+            (d.pkg_name, pkg_store_dir.as_ref().join(d.pkg_ident()));
         let mut child = Command::new(self.build_cmd);
         child.env_clear()
              .args(&self.build_cmd_args)
-             .env("out", out_dir.as_os_str())
              .envs(self.build_deps.iter().map(dep_env_clos))
              .envs(self.pkg_info.deps.iter().map(dep_env_clos))
              .envs(&self.pkg_info.build_settings)
+             .env("out", out_dir.as_os_str())
+             .env("PATH", self.make_path_string(pkg_store_dir.as_ref()))
              .current_dir(&build_dir);
         // TODO there has to be an more elegant way of doing this
         let build_dir_clone = build_dir.clone();
@@ -255,7 +273,7 @@ impl<'a> BuildCxt<'a> {
             }
             Err(e) => { return Err(BuildError::SetupError(e)); }
         }
-        self.exec_build_cmd(&build_dir, &out_dir)?;
+        self.exec_build_cmd(&pkg_store_dir, &build_dir, &out_dir)?;
         self.verify_build_hash(&out_dir)?;
         self.cleanup_post_build(&pkg_store_dir, &build_dir, &out_dir).map_err(
             |e| BuildError::TeardownError(e))?;
@@ -263,3 +281,34 @@ impl<'a> BuildCxt<'a> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use blake2::Digest;
+
+    fn example_buildcxt() -> BuildCxt<'static> {
+        let mut new = BuildCxt::new(
+            "example",
+            "1.0.0",
+            Blake2s::digest(b"hello_world").into(),
+            "./build.sh"
+        );
+        let dep = PKG::new(
+            "dependency",
+            "1.0.0",
+            Blake2s::digest(b"hello_world").into(),
+        );
+        new.pkg_info.add_deps(Some(dep));
+        new
+    }
+
+    #[test]
+    fn test_make_path_string() {
+        let ex = example_buildcxt();
+        let s = ex.make_path_string("/root");
+        assert_eq!(
+            s,
+            "/root/dependency-1.0.0-GNC4RH2YRCDAH7AHVIISWYE2JSD3PJXAQTRCMTGQLXJRULOJKI5A/bin/:"
+        );
+    }
+}
