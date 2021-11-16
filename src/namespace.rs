@@ -85,8 +85,7 @@ pub fn mount_dep_dirs<'a, P: AsRef<Path>>(
             target_dir: bind_dir.clone(),
             err: e
     })?;
-    bind_dir.pop(); // build package identifier
-    bind_dir.pop(); // package store directory
+    bind_dir.push(build_dir); // resets bind_dir to build dir
 
     let mut dep_dir = pkg_store_dir.as_ref().to_path_buf();
     for dep in deps {
@@ -103,9 +102,8 @@ pub fn mount_dep_dirs<'a, P: AsRef<Path>>(
                 err: e
         })?;
         //mount(None::<&str>, &bind_dir, None::<&str>, ro_flags, None::<&str>)?;
-        bind_dir.pop(); // dependency package identifier
-        bind_dir.pop(); // package store directory
-        dep_dir.pop(); // dependency package identifier
+        bind_dir.push(build_dir); // resets bind_dir to build dir
+        dep_dir.pop(); // strips dependency package identifier
     }
     Ok(())
 }
@@ -122,8 +120,7 @@ pub fn umount_dep_dirs<'a, P: AsRef<Path>>(
     umount(&bind_dir).map_err(
         |e| NSError::BindUMountError(bind_dir.clone(),e)
     )?;
-    bind_dir.pop(); // build package identifier
-    bind_dir.pop(); // package store directory
+    bind_dir.push(build_dir); // resets bind_dir to build dir
 
     let mut dep_dir = pkg_store_dir.as_ref().to_path_buf();
     for dep in deps {
@@ -133,9 +130,8 @@ pub fn umount_dep_dirs<'a, P: AsRef<Path>>(
         umount(&bind_dir).map_err(
             |e| NSError::BindUMountError(bind_dir.clone(),e)
         )?;
-        bind_dir.pop(); // dependency package identifier
-        bind_dir.pop(); // package store directory
-        dep_dir.pop(); // dependency package identifier
+        bind_dir.push(build_dir); // resets bind_dir to build dir
+        dep_dir.pop(); // strips dependency package identifier
     }
     Ok(())
 }
