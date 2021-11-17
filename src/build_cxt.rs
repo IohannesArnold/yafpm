@@ -17,9 +17,10 @@
 
 use std::fs;
 use std::io;
-use std::ffi::{OsString, OsStr};
+use std::iter::Chain;
 use std::path::{Path, PathBuf};
 use std::process::{Command,ExitStatus};
+use std::slice::Iter;
 use std::os::unix::process::CommandExt;
 use blake2::Blake2s;
 use nix::unistd::chroot;
@@ -29,6 +30,8 @@ use crate::hashes;
 use crate::walk_dir;
 use crate::namespace;
 use crate::resource;
+use crate::context;
+use crate::context::Context;
 use crate::resource::Resource as RS;
 use crate::package::Package as PKG;
 
@@ -43,6 +46,8 @@ pub enum InnerBuildError {
     NSError(#[from] namespace::NSError),
     #[error(transparent)]
     RSError(#[from] resource::ResourceError),
+    #[error(transparent)]
+    CXTError(#[from] context::ContextPrepError),
     #[error("The output directory already exists")]
     MaybeAlreadyInstalled(String),
 }
@@ -82,6 +87,23 @@ pub struct BuildCxt<'a> {
     #[cfg_attr(feature = "serde", serde(default))]
     #[cfg_attr(feature = "serde", serde(borrow))]
     build_cmd_args: Vec<&'a str>,
+}
+
+impl<'a> Context<'a> for BuildCxt<'a> {
+    type R = Iter< 'a, RS<'a>>;
+    type D = Chain<Iter< 'a, PKG<'a>>, Iter< 'a, PKG<'a>>>;
+
+    fn context_name(&self) -> &str {
+        self.pkg_info.pkg_name
+    }
+
+    fn resources(&'a self) -> Self::R {
+        self.srcs.iter()
+    }
+
+    fn dependencies(&'a self) -> Self::D {
+        self.pkg_info.deps.iter().chain(&self.build_deps)
+    }
 }
 
 impl<'a> BuildCxt<'a> {
@@ -133,42 +155,18 @@ impl<'a> BuildCxt<'a> {
         self
     }
 
-    fn make_path_string<P: AsRef<OsStr>> (
+    fn setup_out_dir(
         &self,
-        pkg_store_dir: P
-    ) -> OsString {
-        let l1 = self.build_deps.len() * 80; // 80 is about the average len
-        let l2 = self.pkg_info.deps.len() * 80; // of a pkg install path
-        let mut s = OsString::with_capacity(l1 + l2);
-        for dep in self.pkg_info.deps.iter().chain(self.build_deps.iter()) {
-            s.push(pkg_store_dir.as_ref());
-            s.push("/");
-            s.push(dep.pkg_ident());
-            s.push("/bin/:");
-        }
-        s
-    }
-
-    fn setup_build_env<P: AsRef<Path>> (
-        &self,
-        pkg_store_dir: P
-    ) -> Result<(PathBuf, PathBuf), InnerBuildError> {
-        let build_dir = dirs::create_builddir(self.pkg_info.pkg_name)?;
+        pkg_store_dir: &Path,
+        build_dir: &Path,
+    ) -> Result<PathBuf, InnerBuildError> {
         let pkg_ident = self.pkg_info.pkg_ident();
         let out_dir = dirs::create_outdir(&pkg_store_dir, &pkg_ident).map_err(
             |e| if let Some(17) = e.raw_os_error() {
                 InnerBuildError::MaybeAlreadyInstalled(pkg_ident)
             } else { InnerBuildError::IOError(e) })?;
-        for src in &self.srcs {
-            src.fetch_resource(&build_dir)?;
-        }
-        namespace::setup_new_namespace()?;
-        let all_deps = self.pkg_info.deps.iter().chain(self.build_deps.iter());
-        namespace::mount_dep_dirs(&pkg_store_dir,
-                                  &build_dir,
-                                  &out_dir,
-                                  all_deps)?;
-        Ok((build_dir, out_dir))
+        namespace::mount_out_dir(build_dir, &out_dir)?;
+        Ok(out_dir)
     }
 
     fn exec_build_cmd<P: AsRef<Path>> (
@@ -232,11 +230,10 @@ impl<'a> BuildCxt<'a> {
         out_dir: &PathBuf
     ) -> Result<(), InnerBuildError> {
         dirs::set_readonly_all(&out_dir, true)?;
-        let all_deps = self.pkg_info.deps.iter().chain(self.build_deps.iter());
-        namespace::umount_dep_dirs(&pkg_store_dir,
+        namespace::umount_out_dir(build_dir, out_dir)?;
+        namespace::umount_dep_dirs(&pkg_store_dir.as_ref(),
                                    &build_dir,
-                                   &out_dir,
-                                   all_deps)?;
+                                   self.dependencies())?;
         fs::remove_dir_all(&build_dir)?;
         Ok(())
     }
@@ -258,13 +255,12 @@ impl<'a> BuildCxt<'a> {
             })?;
             abs_dir.as_ref()
         };
-
-        let build_dir: PathBuf;
         let out_dir: PathBuf;
 
-        match self.setup_build_env(&pkg_store_dir) {
-            Ok((bd, od)) => {
-                build_dir = bd;
+        let build_dir = self.prepare_context_dir(&pkg_store_dir).map_err(
+            |e| BuildError::SetupError(e.into()))?;
+        match self.setup_out_dir(&pkg_store_dir, &build_dir) {
+            Ok(od) => {
                 out_dir = od;
             }
             Err(InnerBuildError::MaybeAlreadyInstalled(id)) => {

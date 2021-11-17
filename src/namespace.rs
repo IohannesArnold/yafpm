@@ -16,7 +16,6 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 use std::io;
-use std::iter;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -67,26 +66,12 @@ pub fn setup_new_namespace() -> Result<(), NSError> {
 pub fn mount_dep_dirs<'a, P: AsRef<Path>>(
     pkg_store_dir: P,
     build_dir: &Path,
-    out_dir: &Path,
-    deps: impl iter::Iterator<Item=&'a PKG<'a>>
+    deps: impl IntoIterator<Item = &'a PKG<'a>>,
 ) -> Result<(), NSError> {
     let flags = MsFlags::MS_BIND;
     //let ro_flags = MsFlags::MS_BIND | MsFlags::MS_REMOUNT | MsFlags::MS_RDONLY;
 
     let mut bind_dir = build_dir.to_path_buf();
-    // This should be safe because of logic in build_cxt::exec_build
-    bind_dir.push(out_dir.strip_prefix("/").unwrap());
-    std::fs::create_dir_all(&bind_dir).map_err(
-        |e| NSError::MkDirError(bind_dir.clone(),e)
-    )?;
-    mount(Some(out_dir), &bind_dir, None::<&str>, flags, None::<&str>).map_err(
-        |e| NSError::BindMountError{
-            source_dir: out_dir.into(),
-            target_dir: bind_dir.clone(),
-            err: e
-    })?;
-    bind_dir.push(build_dir); // resets bind_dir to build dir
-
     let mut dep_dir = pkg_store_dir.as_ref().to_path_buf();
     for dep in deps {
         dep_dir.push(dep.pkg_ident());
@@ -108,21 +93,34 @@ pub fn mount_dep_dirs<'a, P: AsRef<Path>>(
     Ok(())
 }
 
-pub fn umount_dep_dirs<'a, P: AsRef<Path>>(
-    pkg_store_dir: P,
+pub fn mount_out_dir(
     build_dir: &Path,
     out_dir: &Path,
-    deps: impl iter::Iterator<Item=&'a PKG<'a>>
 ) -> Result<(), NSError> {
+    let flags = MsFlags::MS_BIND;
     let mut bind_dir = build_dir.to_path_buf();
+
     // This should be safe because of logic in build_cxt::exec_build
     bind_dir.push(out_dir.strip_prefix("/").unwrap());
-    umount(&bind_dir).map_err(
-        |e| NSError::BindUMountError(bind_dir.clone(),e)
+    std::fs::create_dir_all(&bind_dir).map_err(
+        |e| NSError::MkDirError(bind_dir.clone(),e)
     )?;
-    bind_dir.push(build_dir); // resets bind_dir to build dir
+    mount(Some(out_dir), &bind_dir, None::<&str>, flags, None::<&str>).map_err(
+        |e| NSError::BindMountError{
+            source_dir: out_dir.into(),
+            target_dir: bind_dir.clone(),
+            err: e
+    })?;
+    Ok(())
+}
 
-    let mut dep_dir = pkg_store_dir.as_ref().to_path_buf();
+pub fn umount_dep_dirs<'a> (
+    pkg_store_dir: &Path,
+    build_dir: &Path,
+    deps: impl IntoIterator<Item=&'a PKG<'a>>
+) -> Result<(), NSError> {
+    let mut bind_dir = build_dir.to_path_buf();
+    let mut dep_dir = pkg_store_dir.to_path_buf();
     for dep in deps {
         dep_dir.push(dep.pkg_ident());
         // This should be safe because of logic in build_cxt::exec_build
@@ -135,6 +133,20 @@ pub fn umount_dep_dirs<'a, P: AsRef<Path>>(
     }
     Ok(())
 }
+
+pub fn umount_out_dir(
+    build_dir: &Path,
+    out_dir: &Path,
+) -> Result<(), NSError> {
+    let mut bind_dir = build_dir.to_path_buf();
+    // This should be safe because of logic in build_cxt::exec_build
+    bind_dir.push(out_dir.strip_prefix("/").unwrap());
+    umount(&bind_dir).map_err(
+        |e| NSError::BindUMountError(bind_dir.clone(),e)
+    )?;
+    Ok(())
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -20,6 +20,7 @@
 //! way. The API is object-oriented, and at present the main object is
 //! [BuildCxt].
 
+mod context;
 mod namespace;
 mod walk_dir;
 mod resource;
