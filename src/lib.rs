@@ -24,13 +24,11 @@ mod context;
 mod namespace;
 mod walk_dir;
 mod resource;
-mod build_cxt;
 mod dirs;
 mod hashes;
 mod package;
 
-pub use build_cxt::BuildCxt;
-pub use build_cxt::BuildError;
+pub use context::{BuildCxt, BuildError};
 pub use resource::Resource;
 #[cfg(feature = "serde")]
 pub use resource::url_serde::SERDE_BASE_URL;

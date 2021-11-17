@@ -30,10 +30,9 @@ use crate::hashes;
 use crate::walk_dir;
 use crate::namespace;
 use crate::resource;
-use crate::context;
-use crate::context::Context;
 use crate::resource::Resource as RS;
 use crate::package::Package as PKG;
+use super::Context;
 
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
@@ -47,7 +46,7 @@ pub enum InnerBuildError {
     #[error(transparent)]
     RSError(#[from] resource::ResourceError),
     #[error(transparent)]
-    CXTError(#[from] context::ContextPrepError),
+    CXTError(#[from] super::ContextPrepError),
     #[error("The output directory already exists")]
     MaybeAlreadyInstalled(String),
 }
