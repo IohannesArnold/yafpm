@@ -12,6 +12,11 @@ name = "yafpm-build"
 path = "src/bin/yafpm-build.rs"
 required-features = ["serde", "lexopt"]
 
+[[bin]]
+name = "yafpm-shell"
+path = "src/bin/yafpm-shell.rs"
+required-features = ["serde", "lexopt"]
+
 [features]
 default = []
 minreq-https = ["minreq", "minreq/https-rustls"]
