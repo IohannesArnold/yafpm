@@ -28,7 +28,7 @@ mod dirs;
 mod hashes;
 mod package;
 
-pub use context::{BuildCxt, BuildError};
+pub use context::{BuildCxt, BuildError, ShellCxt, ShellError};
 pub use resource::Resource;
 #[cfg(feature = "serde")]
 pub use resource::url_serde::SERDE_BASE_URL;

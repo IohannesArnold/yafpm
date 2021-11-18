@@ -16,8 +16,9 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 mod build_cxt;
-pub use build_cxt::BuildCxt;
-pub use build_cxt::BuildError;
+mod shell_cxt;
+pub use build_cxt::{BuildCxt, BuildError};
+pub use shell_cxt::{ShellCxt, ShellError};
 
 use std::io;
 use std::ffi::OsString;
