@@ -20,11 +20,11 @@ use std::io;
 use std::env;
 use std::path::{Path, PathBuf};
 
-pub fn create_builddir(pkg_name: &str) -> Result<PathBuf, io::Error> {
-    let mut build_dir = env::temp_dir();
-    build_dir.push(format!("{}-build", pkg_name));
-    fs::create_dir(&build_dir)?;
-    Ok(build_dir)
+pub fn create_context_dir(context_name: &str) -> Result<PathBuf, io::Error> {
+    let mut context_dir = env::temp_dir();
+    context_dir.push(context_name);
+    fs::create_dir(&context_dir)?;
+    Ok(context_dir)
 }
 
 pub fn create_outdir<P: AsRef<Path>>(

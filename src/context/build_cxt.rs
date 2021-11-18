@@ -92,8 +92,11 @@ impl<'a> Context<'a> for BuildCxt<'a> {
     type R = Iter< 'a, RS<'a>>;
     type D = Chain<Iter< 'a, PKG<'a>>, Iter< 'a, PKG<'a>>>;
 
-    fn context_name(&self) -> &str {
-        self.pkg_info.pkg_name
+    fn context_name(&self) -> String {
+        use std::time::SystemTime;
+        let d = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_else(|e| e.duration());
+        format!("{}-build-{}", self.pkg_info.pkg_name, d.as_secs())
     }
 
     fn resources(&'a self) -> Self::R {

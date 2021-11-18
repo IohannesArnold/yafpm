@@ -43,7 +43,7 @@ pub trait Context<'a> {
     type R: IntoIterator<Item = &'a RS<'a>>;
     type D: IntoIterator<Item = &'a PKG<'a>>;
 
-    fn context_name(&self) -> &str;
+    fn context_name(&self) -> String;
 
     fn resources(&'a self) -> Self::R;
 
@@ -53,7 +53,7 @@ pub trait Context<'a> {
         &'a self,
         pkg_store_dir: &Path
     ) -> Result<PathBuf, ContextPrepError> {
-        let context_dir = dirs::create_builddir(self.context_name())?;
+        let context_dir = dirs::create_context_dir(&self.context_name())?;
         for src in self.resources() {
             src.fetch_resource(&context_dir)?;
         }
